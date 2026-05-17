@@ -70,35 +70,6 @@ def embedding_similarity(text1, text2):
 
     return score
 
-# risk classification
-def classify_risk(clause_text):
-
-    text = clause_text.lower()
-
-    high_keywords = [
-        "liability",
-        "indemnity",
-        "unlimited damages",
-        "lawsuit",
-        "penalty"
-    ]
-
-    medium_keywords = [
-        "payment",
-        "fees",
-        "termination",
-        "confidentiality"
-    ]
-
-    for word in high_keywords:
-        if word in text:
-            return "HIGH"
-
-    for word in medium_keywords:
-        if word in text:
-            return "MEDIUM"
-
-    return "LOW"
 
 # get customer revised contracts
 UPLOAD_FOLDER = "./data/uploads"
@@ -136,7 +107,7 @@ for file in os.listdir(UPLOAD_FOLDER):
 
     print(f"\nMatched Contract: {company_contract}")
 
-    # load company contract
+    # load most similar company contract
     original_path = (
         f"./data/contracts/{company_contract}"
     )
@@ -148,7 +119,8 @@ for file in os.listdir(UPLOAD_FOLDER):
         [d.page_content for d in docs2]
     )
 
-    # clause extraction using gpt
+
+    # clause extraction using gpt for both
     original_clauses = extract_clauses(
         original_text
     )
@@ -157,6 +129,7 @@ for file in os.listdir(UPLOAD_FOLDER):
         customer_text
     )
 
+    # classification of clauses
     modified = []
     added = []
     removed = []
@@ -181,14 +154,11 @@ for file in os.listdir(UPLOAD_FOLDER):
                 best_score = score
                 best_match = idx
 
+        # classify to matched, modified, added clauses
         if best_score >= 0.98:
             matched_indexes.add(best_match)
-
         elif best_score >= 0.75:
             modified.append({
-                "risk": classify_risk(
-                    customer_clause["content"]
-                ),
                 "similarity": round(
                     best_score * 100,
                     2
@@ -202,9 +172,6 @@ for file in os.listdir(UPLOAD_FOLDER):
 
         else:
             added.append({
-                "risk": classify_risk(
-                    customer_clause["content"]
-                ),
                 "clause": customer_clause
             })
 
@@ -212,9 +179,6 @@ for file in os.listdir(UPLOAD_FOLDER):
     for idx, clause in enumerate(original_clauses):
         if idx not in matched_indexes:
             removed.append({
-                "risk": classify_risk(
-                    clause["content"]
-                ),
                 "clause": clause
             })
 
@@ -227,19 +191,6 @@ for file in os.listdir(UPLOAD_FOLDER):
     )
 
     difference = 100 - overall_similarity
-
-    # risk score
-    risk_score = 0
-
-    for item in modified:
-        if item["risk"] == "HIGH":
-            risk_score += 25
-        elif item["risk"] == "MEDIUM":
-            risk_score += 10
-        else:
-            risk_score += 3
-
-    risk_score = min(100, risk_score)
 
     # AI legal summary prompt
     summary_prompt = f"""
@@ -265,60 +216,46 @@ REVISED:
     summary = llm.invoke(summary_prompt)
 
     # output
-    print("\n" + "=" * 80)
+    print("\n\n" + "=" * 80)
     print("FINAL ANALYSIS")
     print("=" * 80)
 
     print(
         f"Similarity: {overall_similarity:.2f}%"
     )
-
     print(
         f"Difference: {difference:.2f}%"
     )
 
-    print(
-        f"Risk Score: {risk_score}%"
-    )
-
-    print("\nMODIFIED CLAUSES")
+    print("\n\nMODIFIED CLAUSES")
     print("-" * 80)
 
     for item in modified:
         print(
-            f"\nRisk: {item['risk']}"
-        )
-        print(
             f"Similarity: {item['similarity']}%"
         )
         print(
-            f"\nClause: "
-            f"{item['customer']['title']}"
+            f"Clause: "
+            f"{item['customer']['title']}\n"
         )
 
-    print("\nADDED CLAUSES")
+    print("\n\nADDED CLAUSES")
     print("-" * 80)
 
     for item in added:
         print(
-            f"\nRisk: {item['risk']}"
-        )
-        print(
             item["clause"]["title"]
         )
 
-    print("\nREMOVED CLAUSES")
+    print("\n\nREMOVED CLAUSES")
     print("-" * 80)
 
     for item in removed:
         print(
-            f"\nRisk: {item['risk']}"
-        )
-        print(
             item["clause"]["title"]
         )
 
-    print("\nAI LEGAL SUMMARY")
+    print("\n\nAI LEGAL SUMMARY")
     print("-" * 80)
 
     print(summary.content)
