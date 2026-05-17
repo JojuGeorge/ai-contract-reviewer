@@ -78,7 +78,7 @@ for file in os.listdir(UPLOAD_FOLDER):
     if not file.endswith(".pdf"):
         continue
 
-    print("\n" + "=" * 80)
+    print("\n\n\n" + "=" * 80)
     print("CHECKING:", file)
     print("=" * 80)
 
@@ -232,11 +232,11 @@ REVISED:
 
     for item in modified:
         print(
-            f"Similarity: {item['similarity']}%"
+            f"Clause: "
+            f"{item['customer']['title']}"
         )
         print(
-            f"Clause: "
-            f"{item['customer']['title']}\n"
+            f"Similarity: {item['similarity']}%\n"
         )
 
     print("\n\nADDED CLAUSES")
