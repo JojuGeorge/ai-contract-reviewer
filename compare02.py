@@ -1,11 +1,8 @@
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
-
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
-
 from sklearn.metrics.pairwise import cosine_similarity
-
 from dotenv import load_dotenv
 
 import numpy as np
@@ -14,31 +11,30 @@ import json
 
 load_dotenv()
 
-# models
-embedder = OpenAIEmbeddings(
-    model="text-embedding-3-small"
+# embedding model
+embedding_model = OpenAIEmbeddings(
+    model="text-embedding-3-small",
 )
 
 llm = ChatOpenAI(
-    model="gpt-4.1-mini",
+    model="gpt-4o-mini",
     temperature=0
 )
 
 # chroma vector db
 db = Chroma(
     collection_name="contracts_collection",
-    embedding_function=embedder,
+    embedding_function=embedding_model,
     persist_directory="./chroma_db"
 )
 
 # clause extraction using gpt
-def extract_clauses(text):
 
+
+def extract_clauses(text):
     prompt = f"""
 You are a legal contract parser.
-
 Extract all legal clauses.
-
 Return JSON only.
 
 Format:
@@ -48,20 +44,19 @@ Format:
     "content": "complete clause text"
   }}
 ]
-
 CONTRACT:
 {text}
 """
-
     response = llm.invoke(prompt)
-
     return json.loads(response.content)
 
 # find distance in vector using the cosine similarity method
+
+
 def embedding_similarity(text1, text2):
 
-    emb1 = embedder.embed_query(text1)
-    emb2 = embedder.embed_query(text2)
+    emb1 = embedding_model.embed_query(text1)
+    emb2 = embedding_model.embed_query(text2)
 
     score = cosine_similarity(
         [emb1],
@@ -118,7 +113,6 @@ for file in os.listdir(UPLOAD_FOLDER):
     original_text = "\n".join(
         [d.page_content for d in docs2]
     )
-
 
     # clause extraction using gpt for both
     original_clauses = extract_clauses(

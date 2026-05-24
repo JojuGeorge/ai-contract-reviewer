@@ -11,20 +11,23 @@ import uuid
 
 load_dotenv()
 
-# models
-embedder = OpenAIEmbeddings(
-    model="text-embedding-3-small"
+# embedding model
+embedding_model = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    show_progress_bar=True,
+    chunk_size=50,
+    retry_min_seconds=10
 )
 
 llm = ChatOpenAI(
-    model="gpt-4.1-mini",
+    model="gpt-4o-mini",
     temperature=0
 )
 
 # chroma vector db
 db = Chroma(
     collection_name="contracts_collection",
-    embedding_function=embedder,
+    embedding_function=embedding_model,
     persist_directory="./chroma_db"
 )
 
@@ -32,15 +35,13 @@ db = Chroma(
 CONTRACT_FOLDER = "./data/contracts"
 
 # extract caluses using gpt
-def extract_clauses(text):
 
+
+def extract_clauses(text):
     prompt = f"""
 You are a legal contract parser.
-
 Extract all legal clauses from this contract.
-
 Return valid JSON array only.
-
 Format:
 [
   {{
@@ -48,23 +49,19 @@ Format:
     "content": "full clause text"
   }}
 ]
-
 CONTRACT:
 {text}
 """
-
     response = llm.invoke(prompt)
     content = response.content.strip()
 
     try:
         clauses = json.loads(content)
         return clauses
-
     except Exception as e:
         print("Clause extraction failed")
         print(e)
         return []
-
 
 
 # ingest contract for embedding and saving to db
@@ -98,7 +95,6 @@ for file in os.listdir(CONTRACT_FOLDER):
             "clause_title": clause["title"]
         })
         ids.append(str(uuid.uuid4()))
-
 
     # add text to chroma db after embedding then stores in the vector db
     db.add_texts(
